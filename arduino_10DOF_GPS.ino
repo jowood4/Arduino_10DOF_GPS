@@ -6,11 +6,11 @@
 #include <Adafruit_10DOF.h>
 #include <Adafruit_GPS.h>
 #include <SoftwareSerial.h>
-#include <Bridge.h>
-#include <Process.h>
 
 SoftwareSerial mySerial(8, 7);
 Adafruit_GPS GPS(&mySerial);
+
+uint8_t zero_pin = 3;
 
 #define GPSECHO  false
 
@@ -24,116 +24,118 @@ Adafruit_LSM303_Mag_Unified   mag   = Adafruit_LSM303_Mag_Unified(30302);
 //Adafruit_BMP085_Unified       bmp   = Adafruit_BMP085_Unified(18001);
 
 float seaLevelPressure = SENSORS_PRESSURE_SEALEVELHPA;
-Process p;
 
-void setup()  
+uint32_t timer, timer1 = 0;
+uint8_t count = 0;
+float zero_pitch = 0;
+float zero_roll = 0;
+float last_pitch = 0;
+float last_roll = 0;
+//uint8_t zero_flag = 0;
+uint32_t zero_timer = 0;
+uint8_t gps_good = 0;
+
+void setup()
 {
-  Bridge.begin();
-  
   initSensors();
 
-  Serial.begin(115200);
-  //delay(5000);
-  //Serial.println("Adafruit GPS library basic test!");
+  pinMode(zero_pin, 0);
 
   // 9600 NMEA is the default baud rate for Adafruit MTK GPS's- some use 4800
   GPS.begin(9600);
   GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
-  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);   // 1 Hz update rate
+  GPS.sendCommand(PMTK_SET_NMEA_UPDATE_5HZ);   // 1 Hz update rate
   GPS.sendCommand(PGCMD_ANTENNA);
+
+  //Comm Link between Arduino and Linux
+  Serial1.begin(9600);
 
   delay(1000);
   // Ask for firmware version
   mySerial.println(PMTK_Q_RELEASE);
+
+  timer = millis();
 }
 
-uint32_t timer = millis();
 void loop()                     // run over and over again
 {
-  String gps = "XGPSNflight,";
-  String att = "XATTNflight,";
-  
-  char c = GPS.read();
-  // if you want to debug, this is a good time to do it!
-  if ((c) && (GPSECHO)) Serial.write(c); 
-  
-  // if a sentence is received, we can check the checksum, parse it...
-  if (GPS.newNMEAreceived()) 
-  {
-    if (!GPS.parse(GPS.lastNMEA()))   return;  
-  }
+	zero_timer = millis();
+	while(true)
+	{
+		if(!digitalRead(zero_pin))
+		{
+			if(millis() - zero_timer > 3000)
+			{
+				Serial1.println("Pitch, Roll Zeroed");
+				//accel.getEvent(&accel_event);
+				zero_pitch = last_pitch;
+				zero_roll = last_roll;
+				//return;
+			}
+			//Serial1.println(millis() - zero_timer);
+			delay(100);
+		}
+		else
+		{
+			break;
+		}
+	}
 
-  // if millis() or timer wraps around, we'll just reset it
-  if (timer > millis())  timer = millis();
+	if(!gps_good)
+	{
+		char c = GPS.read();
+		if((c)&&(GPS.newNMEAreceived()))
+		{
+			if (GPS.parse(GPS.lastNMEA()))   gps_good = 1;
+		}
+	}
 
-  // approximately every 2 seconds or so, print out the current stats
-  if (millis() - timer > 1000)
-  { 
-    timer = millis(); // reset the timer
-    
-    gps += String(GPS.longitude);
-    gps += ",";
-    gps += String(GPS.latitude);
-    gps += ",";
-    gps += String(GPS.altitude);
-    gps += ",";
-    gps += String(GPS.angle);
-    gps += ",";
-    gps += String(GPS.speed * 0.51444);
-    Serial.println(gps);
-    
-    /* Calculate pitch and roll from the raw accelerometer data */
-    accel.getEvent(&accel_event);
-    if (dof.accelGetOrientation(&accel_event, &orientation))
-    {
-      /* 'orientation' should have valid .roll and .pitch fields 
-      Serial.print(F("Roll: "));
-      Serial.print(orientation.roll);
-      Serial.print(F("; "));
-      Serial.print(F("Pitch: "));
-      Serial.print(orientation.pitch);
-      Serial.println(F("; "));*/
-    }
-    
-    /* Calculate the heading using the magnetometer */
-    mag.getEvent(&mag_event);
-    if (dof.magGetOrientation(SENSOR_AXIS_Z, &mag_event, &orientation))
-    {
-      att += String(orientation.heading);
-      att += ",";
-      att += String(orientation.pitch);
-      att += ",";
-      att += String(orientation.roll);
-      /* 'orientation' should have valid .heading data now 
-      Serial.print(F("Heading: "));
-      Serial.print(orientation.heading);
-      Serial.print(F("; "));*/
-    }
-    
-    /* Calculate the altitude using the barometric pressure sensor */
-    //bmp.getEvent(&bmp_event);
-    //if (bmp_event.pressure)
-    //{
-      /* Get ambient temperature in C 
-      float temperature;
-      bmp.getTemperature(&temperature);
-      /* Convert atmospheric pressure, SLP and temp to altitude    
-      Serial.print(F("Alt: "));
-      Serial.print(bmp.pressureToAltitude(seaLevelPressure,
-                                          bmp_event.pressure,
-                                          temperature)); 
-      Serial.print(F(" m; "));
-      /* Display the temperature 
-      Serial.print(F("Temp: "));
-      Serial.print(temperature);
-      Serial.print(F(" C"));*/
-    //}
-    Serial.println(att);
-  }
-  p.begin("python");
-  p.addParameter("/mnt/sda1/arduino/udp_write.py");
-  p.addParameter(gps);
-  p.run();
+	timer1 = millis()-timer;
+	//if((millis()-timer) > 250)
+	if(timer1 > 250)
+	{
+		timer = millis();
+		String att = "XATTNflight,";
+		// Calculate pitch and roll from the raw accelerometer data
+		accel.getEvent(&accel_event);
+		dof.accelGetOrientation(&accel_event, &orientation);
+		// Calculate the heading using the magnetometer
+		mag.getEvent(&mag_event);
+		dof.magGetOrientation(SENSOR_AXIS_Z, &mag_event, &orientation);
+		last_pitch = orientation.pitch;
+		last_roll = orientation.roll;
+
+		att += String(orientation.heading);
+		att += ",";
+		att += String(orientation.pitch - zero_pitch);
+		att += ",";
+		att += String(orientation.roll - zero_roll);
+	    Serial1.println(att);
+	    //Serial1.println(timer1);
+
+	    if(count == 3)
+	    //if(false)
+	    {
+	    	count = 0;
+	    	gps_good = 0;
+	    	String gps = "XGPSNflight,";
+
+	    	gps += String(GPS.longitude);
+	    	gps += ",";
+	    	gps += String(GPS.latitude);
+	    	gps += ",";
+	    	gps += String(GPS.altitude);
+	    	gps += ",";
+	    	gps += String(GPS.angle);
+	    	gps += ",";
+	    	gps += String(GPS.speed * 0.51444);
+	    	Serial1.println(gps);
+	    }
+	    else
+	    {
+	    	count = count + 1;
+	    }
+	}
 }
 
 void initSensors()
@@ -141,13 +143,13 @@ void initSensors()
   if(!accel.begin())
   {
     /* There was a problem detecting the LSM303 ... check your connections */
-    Serial.println(F("Ooops, no LSM303 detected ... Check your wiring!"));
+    //Serial.println(F("Ooops, no LSM303 detected ... Check your wiring!"));
     while(1);
   }
   if(!mag.begin())
   {
     /* There was a problem detecting the LSM303 ... check your connections */
-    Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
+    //Serial.println("Ooops, no LSM303 detected ... Check your wiring!");
     while(1);
   }
   /*if(!bmp.begin())
