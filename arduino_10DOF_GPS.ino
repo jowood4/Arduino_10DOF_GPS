@@ -34,7 +34,8 @@ float last_roll = 0;
 //uint8_t zero_flag = 0;
 uint32_t zero_timer = 0;
 uint8_t gps_good = 0;
-float temp_lat, temp_long;
+float temp_deg;
+int temp_int;
 
 void setup()
 {
@@ -137,22 +138,20 @@ void loop()                     // run over and over again
 //	    	gps += ",";
 //	    	gps += String(GPS.speed * 0.51444);
 //	    	Serial1.println(gps);
-	    	if(GPS.lat == 'N') temp_lat = GPS.latitude;
-	    	else temp_lat = GPS.latitude * -1;
-
-	    	if(GPS.lon == 'E') temp_long = GPS.longitude;
-			else temp_long = GPS.longitude * -1;
 
 	    	Serial1.print("XGPSNflight,");
-	    	Serial1.print(temp_long, 4);
+
+	    	Serial1.print(GPS.longitudeDegrees, 3);
 	    	Serial1.print(",");
-	    	Serial1.print(temp_lat, 4);
+
+	    	Serial1.print(GPS.latitudeDegrees, 3);
 	    	Serial1.print(",");
-	    	Serial1.print(GPS.altitude);
+
+	    	Serial1.print(GPS.altitude, 1);
 	    	Serial1.print(",");
 	    	Serial1.print(GPS.angle);
 	    	Serial1.print(",");
-	    	Serial1.println(GPS.speed * 0.51444);
+	    	Serial1.println(GPS.speed * 0.51444, 1);
 	    }
 	    else
 	    {
