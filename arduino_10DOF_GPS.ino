@@ -95,7 +95,6 @@ void loop()                     // run over and over again
 	if(timer1 > 250)
 	{
 		timer = millis();
-		String att = "XATTNflight,";
 		// Calculate pitch and roll from the raw accelerometer data
 		accel.getEvent(&accel_event);
 		dof.accelGetOrientation(&accel_event, &orientation);
@@ -105,12 +104,21 @@ void loop()                     // run over and over again
 		last_pitch = orientation.pitch;
 		last_roll = orientation.roll;
 
-		att += String(orientation.heading);
-		att += ",";
-		att += String(orientation.pitch - zero_pitch);
-		att += ",";
-		att += String(orientation.roll - zero_roll);
-	    Serial1.println(att);
+//		String att = "XATTNflight,";
+//		att += String(orientation.heading);
+//		att += ",";
+//		att += String(orientation.pitch - zero_pitch);
+//		att += ",";
+//		att += String(orientation.roll - zero_roll);
+//	    Serial1.println(att);
+		Serial1.print("XATTNflight");
+		Serial1.print(orientation.heading,1);
+		Serial1.print(",");
+		Serial1.print(orientation.pitch - zero_pitch,1);
+		Serial1.print(",");
+		Serial1.println(orientation.roll - zero_roll,1);
+
+
 	    //Serial1.println(timer1);
 
 	    if(count == 3)
