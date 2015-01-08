@@ -34,6 +34,7 @@ float last_roll = 0;
 //uint8_t zero_flag = 0;
 uint32_t zero_timer = 0;
 uint8_t gps_good = 0;
+float temp_lat, temp_long;
 
 void setup()
 {
@@ -111,13 +112,12 @@ void loop()                     // run over and over again
 //		att += ",";
 //		att += String(orientation.roll - zero_roll);
 //	    Serial1.println(att);
-		Serial1.print("XATTNflight");
+		Serial1.print("XATTNflight,");
 		Serial1.print(orientation.heading,1);
 		Serial1.print(",");
 		Serial1.print(orientation.pitch - zero_pitch,1);
 		Serial1.print(",");
 		Serial1.println(orientation.roll - zero_roll,1);
-
 
 	    //Serial1.println(timer1);
 
@@ -126,18 +126,33 @@ void loop()                     // run over and over again
 	    {
 	    	count = 0;
 	    	gps_good = 0;
-	    	String gps = "XGPSNflight,";
+//	    	String gps = "XGPSNflight,";
+//	    	gps += String(GPS.longitude);
+//	    	gps += ",";
+//	    	gps += String(GPS.latitude);
+//	    	gps += ",";
+//	    	gps += String(GPS.altitude);
+//	    	gps += ",";
+//	    	gps += String(GPS.angle);
+//	    	gps += ",";
+//	    	gps += String(GPS.speed * 0.51444);
+//	    	Serial1.println(gps);
+	    	if(GPS.lat == 'N') temp_lat = GPS.latitude;
+	    	else temp_lat = GPS.latitude * -1;
 
-	    	gps += String(GPS.longitude);
-	    	gps += ",";
-	    	gps += String(GPS.latitude);
-	    	gps += ",";
-	    	gps += String(GPS.altitude);
-	    	gps += ",";
-	    	gps += String(GPS.angle);
-	    	gps += ",";
-	    	gps += String(GPS.speed * 0.51444);
-	    	Serial1.println(gps);
+	    	if(GPS.lon == 'E') temp_long = GPS.longitude;
+			else temp_long = GPS.longitude * -1;
+
+	    	Serial1.print("XGPSNflight,");
+	    	Serial1.print(temp_long, 4);
+	    	Serial1.print(",");
+	    	Serial1.print(temp_lat, 4);
+	    	Serial1.print(",");
+	    	Serial1.print(GPS.altitude);
+	    	Serial1.print(",");
+	    	Serial1.print(GPS.angle);
+	    	Serial1.print(",");
+	    	Serial1.println(GPS.speed * 0.51444);
 	    }
 	    else
 	    {
